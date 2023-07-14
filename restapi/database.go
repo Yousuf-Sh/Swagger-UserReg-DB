@@ -8,7 +8,7 @@ import (
 
 func ConnectDB() (*sql.DB, error) {
 	// Replace the database connection details with your own configuration
-	db, err := sql.Open("postgres", "postgres://postgres:ys192001@localhost:5432/user_registeration?sslmode=disable")
+	db, err := sql.Open("sqlite3", "../userDB.db")
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to the database: %w", err)
 	}
