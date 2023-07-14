@@ -14,6 +14,8 @@ require (
 	golang.org/x/net v0.12.0
 )
 
+require github.com/mattn/go-sqlite3 v1.14.17 // indirect
+
 require (
 	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
