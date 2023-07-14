@@ -3,7 +3,10 @@
 package restapi
 
 import (
+	"SwaggerPostGresApi/models"
 	"crypto/tls"
+	"database/sql"
+	"fmt"
 	"log"
 	"net/http"
 
@@ -45,7 +48,15 @@ func configureAPI(api *operations.UserRegistrationAPIAPI) http.Handler {
 
 	if api.UsersCreateUserHandler == nil {
 		api.UsersCreateUserHandler = users.CreateUserHandlerFunc(func(params users.CreateUserParams) middleware.Responder {
-			return middleware.NotImplemented("operation users.CreateUser has not yet been implemented")
+			user := &models.User{
+				Name:  params.User.Name,
+				Email: params.User.Email,
+			}
+			err := CreateUser(db, user)
+			if err != nil {
+				return users.NewCreateUserInternalServerError()
+			}
+			return users.NewCreateUserOK().WithPayload(user)
 		})
 	}
 	if api.UsersDeleteUserByIDHandler == nil {
@@ -74,6 +85,57 @@ func configureAPI(api *operations.UserRegistrationAPIAPI) http.Handler {
 	api.ServerShutdown = func() {}
 
 	return setupGlobalMiddleware(api.Serve(setupMiddlewares))
+}
+
+func CreateUser(db *sql.DB, user *models.User) error {
+	stmt, err := db.Prepare("INSERT INTO users(name,email) VALUES (?, ?)")
+	if err != nil {
+		return fmt.Errorf("Failed to prepare statementt: %v", err)
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(user.Name, user.Email)
+	if err != nil {
+		return fmt.Errorf("failed to execute statement: %v", err)
+	}
+	return nil
+}
+
+func createUserHandler(params users.CreateUserParams) middleware.Responder {
+	// Extract the user information from the request parameters
+	user := params.User
+
+	// Validate the user input
+	if user == nil {
+		return users.NewCreateUserBadRequest().WithPayload(&models.Error{
+			Message: "Invalid user data",
+		})
+	}
+
+	// Perform additional validation if necessary
+	// ...
+
+	// Create a new user in the database
+	// Replace this with your own database logic
+	result, err := db.Exec("INSERT INTO users (name, email, password) VALUES (?, ?, ?)",
+		user.Name, user.Email, user.Password)
+	if err != nil {
+		return users.NewCreateUserInternalServerError().WithPayload(&models.Error{
+			Message: "Failed to create user",
+		})
+	}
+
+	// Get the ID of the inserted user
+	userID, err := result.LastInsertId()
+	if err != nil {
+		return users.NewCreateUserInternalServerError().WithPayload(&models.Error{
+			Message: "Failed to retrieve user ID",
+		})
+	}
+
+	// Set the ID of the created user
+	user.ID = int64(userID)
+
+	return users.NewCreateUserOK().WithPayload(user)
 }
 
 // The TLS configuration before HTTPS server starts.
